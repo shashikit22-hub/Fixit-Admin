@@ -165,15 +165,15 @@ export default function Dashboard() {
           {/* Summary row */}
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-gray-900">₹{totalRevenue.toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-gray-900">-</p>
               <p className="text-[11px] text-gray-400">Total Revenue</p>
             </div>
             <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-gray-900">₹{revenueMonths[revenueMonths.length - 1]?.value.toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-gray-900">-</p>
               <p className="text-[11px] text-gray-400">This Month</p>
             </div>
             <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-amber-600">₹{Math.round(totalRevenue * 0.15).toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-amber-600">-</p>
               <p className="text-[11px] text-gray-400">Pending</p>
             </div>
           </div>
