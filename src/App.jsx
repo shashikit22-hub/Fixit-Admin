@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import ServiceRequests from './pages/ServiceRequests'
 import RequestDetail from './pages/RequestDetail'
 import Technicians from './pages/Technicians'
+import TechnicianDetail from './pages/TechnicianDetail'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/requests" element={<ServiceRequests />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
           <Route path="/technicians" element={<Technicians />} />
+          <Route path="/technicians/:id" element={<TechnicianDetail />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
