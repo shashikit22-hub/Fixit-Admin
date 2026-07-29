@@ -20,7 +20,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
       localStorage.removeItem('fixit_token');
       localStorage.removeItem('fixit_user');
-      window.location.href = import.meta.env.BASE_URL + 'login';
+      window.location.href = import.meta.env.BASE_URL + '#/login';
     }
     return Promise.reject(error);
   }
