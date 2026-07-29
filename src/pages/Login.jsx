@@ -74,7 +74,7 @@ export default function Login() {
   return (
     <div className="min-h-dvh relative flex items-center justify-center sm:justify-start overflow-hidden">
       <img
-        src="/login-bg.png"
+        src={`${import.meta.env.BASE_URL}login-bg.png`}
         alt=""
         aria-hidden="true"
         className="absolute inset-0 w-full h-full object-cover"
@@ -83,7 +83,7 @@ export default function Login() {
       <div className="relative z-10 w-[calc(100%-2rem)] sm:w-[calc(100%-3rem)] max-w-md sm:max-w-lg mx-4 sm:mx-0 sm:ml-6 md:ml-12 lg:ml-20 xl:ml-28 my-4 animate-scaleIn">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg p-6 sm:p-8 md:p-10 border border-gray-200">
           <div className="text-center mb-8 animate-slideUp">
-            <img src="/logo.png" alt="TinyFix" className="h-16 sm:h-20 md:h-24 mx-auto mb-4" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="TinyFix" className="h-16 sm:h-20 md:h-24 mx-auto mb-4" />
             <p className="text-gray-500 text-sm">Sign in to your admin account</p>
           </div>
 

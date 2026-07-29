@@ -41,7 +41,7 @@ export default function MobileMenu({ open, onClose, links, pendingCount }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <img src="/logo.png" alt="TinyFix" className="h-7" />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="TinyFix" className="h-7" />
           <button
             onClick={onClose}
             className="p-2 rounded-md hover:bg-gray-50 text-gray-500 focus-ring"

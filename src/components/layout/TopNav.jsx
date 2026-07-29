@@ -54,7 +54,7 @@ export default function TopNav() {
               </button>
               <NavLink to="/" className="flex items-center shrink-0">
                 <img
-                  src="/logo.png"
+                  src={`${import.meta.env.BASE_URL}logo.png`}
                   alt="TinyFix Admin"
                   className="h-14 sm:h-16 w-auto object-contain"
                 />
