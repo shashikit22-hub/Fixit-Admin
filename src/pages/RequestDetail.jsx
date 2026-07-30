@@ -4,6 +4,7 @@ import {
   MdPhone, MdWhatsapp, MdLocationOn, MdHome, MdOpenInNew,
   MdPerson, MdCheckCircle, MdPhotoCamera, MdVideocam,
   MdContentCopy, MdEdit, MdChevronLeft, MdChevronRight, MdCancel,
+  MdRefresh, MdSend,
 } from 'react-icons/md'
 import toast from 'react-hot-toast'
 import api from '../services/api'
@@ -13,7 +14,7 @@ import Modal from '../components/ui/Modal'
 import Select from '../components/ui/Select'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { Skeleton } from '../components/ui/Skeleton'
-import { statuses, statusColors, statusDotColors } from '../constants/status'
+import { statuses, statusColors, statusDotColors, assignmentStatusColors } from '../constants/status'
 
 const IST = { timeZone: 'Asia/Kolkata' }
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', IST)
@@ -94,6 +95,13 @@ export default function RequestDetail() {
     } catch { toast.error('Failed to complete') }
   }
 
+  const handleResend = async (assignmentId) => {
+    try {
+      await api.post(`/assignments/${assignmentId}/resend`)
+      toast.success('Notification resent to technician')
+    } catch { toast.error('Failed to resend') }
+  }
+
   const handlePrev = () => {
     const prevId = parseInt(id) - 1
     if (prevId >= 1) navigate(`/requests/${prevId}`)
@@ -158,6 +166,8 @@ export default function RequestDetail() {
   timeline.push({ label: 'Request created', time: request.createdAt, dot: 'bg-gray-300' })
   request.assignments?.forEach(a => {
     timeline.push({ label: `Assigned to ${a.technicianName}`, time: a.assignedAt, dot: 'bg-blue-400' })
+    if (a.acceptedAt) timeline.push({ label: `${a.technicianName} accepted`, time: a.acceptedAt, dot: 'bg-green-400' })
+    if (a.rejectedAt) timeline.push({ label: `${a.technicianName} rejected`, time: a.rejectedAt, dot: 'bg-red-400' })
     if (a.completedAt) timeline.push({ label: `${a.technicianName} completed`, time: a.completedAt, dot: 'bg-green-400' })
   })
   if (request.updatedAt && request.status === 'Completed') timeline.push({ label: 'Request completed', time: request.updatedAt, dot: 'bg-green-400' })
@@ -232,6 +242,15 @@ export default function RequestDetail() {
                 <MdCancel size={14} /> Cancel Request
               </Button>
             )}
+
+            {/* Refresh */}
+            <button
+              onClick={fetchData}
+              className="w-8 h-8 rounded-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors print:hidden"
+              title="Refresh"
+            >
+              <MdRefresh size={16} />
+            </button>
 
             {/* WhatsApp + Call */}
             {whatsappLink && (
@@ -352,31 +371,46 @@ export default function RequestDetail() {
               {/* Assignment list */}
               {request.assignments?.length > 0 ? (
                 <div className="space-y-3">
-                  {request.assignments.map(a => (
-                    <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg ${a.completedAt ? 'bg-green-50/50' : 'bg-gray-50/50'}`}>
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${a.completedAt ? 'bg-green-100 text-green-700' : 'bg-atoll-100 text-atoll-700'}`}>
-                        {a.technicianName?.charAt(0)?.toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-gray-800 truncate">{a.technicianName}</p>
-                          {a.completedAt
-                            ? <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">Done</span>
-                            : <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex-shrink-0">Active</span>
-                          }
+                  {request.assignments.map(a => {
+                    const cardBg = a.status === 'Accepted' || a.status === 'Completed' ? 'bg-green-50/50'
+                      : a.status === 'Rejected' ? 'bg-red-50/30'
+                      : 'bg-gray-50/50'
+                    const avatarBg = a.status === 'Accepted' || a.status === 'Completed' ? 'bg-green-100 text-green-700'
+                      : a.status === 'Rejected' ? 'bg-red-100 text-red-700'
+                      : 'bg-atoll-100 text-atoll-700'
+                    return (
+                      <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg ${cardBg}`}>
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarBg}`}>
+                          {a.technicianName?.charAt(0)?.toUpperCase()}
                         </div>
-                        <p className="text-[11px] text-gray-400 mt-0.5">{a.technicianPhone} &middot; Assigned {fmtDateTime(a.assignedAt)}</p>
-                        {a.notes && <p className="text-xs text-gray-500 italic mt-1">{a.notes}</p>}
-                        {a.completedAt ? (
-                          <p className="text-[11px] text-green-600 mt-1 flex items-center gap-1"><MdCheckCircle size={12} /> Completed {fmtDateTime(a.completedAt)}</p>
-                        ) : (
-                          <Button onClick={() => handleComplete(a.id)} variant="outline" size="sm" className="mt-2 print:hidden">
-                            <MdCheckCircle size={14} /> Mark Done
-                          </Button>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-gray-800 truncate">{a.technicianName}</p>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${assignmentStatusColors[a.status] || 'bg-gray-100 text-gray-700'}`}>
+                              {a.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-400 mt-0.5">{a.technicianPhone} &middot; Assigned {fmtDateTime(a.assignedAt)}</p>
+                          {a.notes && <p className="text-xs text-gray-500 italic mt-1">{a.notes}</p>}
+                          {a.completedAt && (
+                            <p className="text-[11px] text-green-600 mt-1 flex items-center gap-1"><MdCheckCircle size={12} /> Completed {fmtDateTime(a.completedAt)}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2 print:hidden">
+                            {a.status === 'Accepted' && !a.completedAt && (
+                              <Button onClick={() => handleComplete(a.id)} variant="outline" size="sm">
+                                <MdCheckCircle size={14} /> Mark Done
+                              </Button>
+                            )}
+                            {a.status === 'Pending' && (
+                              <Button onClick={() => handleResend(a.id)} variant="outline" size="sm">
+                                <MdSend size={14} /> Resend
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-6">

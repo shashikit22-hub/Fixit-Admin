@@ -17,7 +17,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Stars from '../components/ui/Stars'
 import DataTable from '../components/ui/DataTable'
 import { Skeleton } from '../components/ui/Skeleton'
-import { statusColors, statusDotColors, specialtyColors, specialties } from '../constants/status'
+import { statusColors, statusDotColors, specialtyColors, specialties, assignmentStatusColors, assignmentStatusDotColors } from '../constants/status'
 
 const IST = { timeZone: 'Asia/Kolkata' }
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', IST)
@@ -230,6 +230,18 @@ export default function TechnicianDetail() {
             {s === 'InProgress' ? 'In Progress' : s}
           </Badge>
         )
+      },
+    },
+    {
+      accessorKey: 'assignmentStatus',
+      header: 'Response',
+      cell: ({ getValue }) => {
+        const s = getValue()
+        return s ? (
+          <Badge className={assignmentStatusColors[s] || 'bg-gray-100 text-gray-700'} dot={assignmentStatusDotColors[s]}>
+            {s}
+          </Badge>
+        ) : <span className="text-gray-300 text-xs">-</span>
       },
     },
     {

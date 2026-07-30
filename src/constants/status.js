@@ -47,6 +47,22 @@ export const specialtyColors = {
   General: 'bg-gray-100 text-gray-700',
 }
 
+export const assignmentStatuses = ['Pending', 'Accepted', 'Rejected', 'Completed']
+
+export const assignmentStatusColors = {
+  Pending: 'bg-amber-100 text-amber-700',
+  Accepted: 'bg-green-100 text-green-700',
+  Rejected: 'bg-red-100 text-red-700',
+  Completed: 'bg-blue-100 text-blue-700',
+}
+
+export const assignmentStatusDotColors = {
+  Pending: 'bg-amber-500',
+  Accepted: 'bg-green-500',
+  Rejected: 'bg-red-500',
+  Completed: 'bg-blue-500',
+}
+
 export const ratingOptions = ['', 'rated', 'unrated', '5', '4', '3', '2', '1']
 
 export const ratingLabels = {
