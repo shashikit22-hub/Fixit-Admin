@@ -26,4 +26,15 @@ api.interceptors.response.use(
   }
 );
 
+export const API_BASE = import.meta.env.PROD
+  ? 'https://fixit-backend-ejj1.onrender.com'
+  : '';
+
+/** Convert a media path to full URL. Handles local paths (/uploads/...) and external URLs. */
+export const mediaUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return API_BASE + url;
+};
+
 export default api;

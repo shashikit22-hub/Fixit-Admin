@@ -7,7 +7,7 @@ import {
   MdRefresh, MdSend,
 } from 'react-icons/md'
 import toast from 'react-hot-toast'
-import api from '../services/api'
+import api, { mediaUrl } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
@@ -313,24 +313,24 @@ export default function RequestDetail() {
           )}
 
           {/* ── Section: Media ── */}
-          {(request.photoUrl || request.videoUrl) && (
+          {(mediaUrl(request.photoUrl) || mediaUrl(request.videoUrl)) && (
             <Section title="Media">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {request.photoUrl && (
+                {mediaUrl(request.photoUrl) && (
                   <div
                     className="group relative rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-atoll-300 transition-colors"
-                    onClick={() => setLightbox(request.photoUrl)}
+                    onClick={() => setLightbox(mediaUrl(request.photoUrl))}
                     role="button" tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') setLightbox(request.photoUrl) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setLightbox(mediaUrl(request.photoUrl)) }}
                   >
-                    <img src={request.photoUrl} alt="Issue" className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={mediaUrl(request.photoUrl)} alt="Issue" className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                     <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1"><MdPhotoCamera size={11} /> Photo</span>
                   </div>
                 )}
-                {request.videoUrl && (
+                {mediaUrl(request.videoUrl) && (
                   <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                    <video src={request.videoUrl} controls className="w-full h-44 object-cover bg-black" />
+                    <video src={mediaUrl(request.videoUrl)} controls className="w-full h-44 object-cover bg-black" />
                     <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1"><MdVideocam size={11} /> Video</span>
                   </div>
                 )}
