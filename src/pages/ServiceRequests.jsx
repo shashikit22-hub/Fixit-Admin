@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { MdDownload, MdSearch, MdClear, MdFilterList, MdKeyboardArrowDown, MdVisibility, MdViewColumn } from 'react-icons/md'
+import { MdDownload, MdSearch, MdClear, MdVisibility, MdViewColumn, MdClose } from 'react-icons/md'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -9,8 +9,9 @@ import StatusBadge from '../components/ui/StatusBadge'
 import Stars from '../components/ui/Stars'
 import DataTable from '../components/ui/DataTable'
 import Select from '../components/ui/Select'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import useDebounce from '../hooks/useDebounce'
-import { statuses, serviceTypes, ratingOptions, ratingLabels, statusDotColors } from '../constants/status'
+import { statuses, serviceTypes } from '../constants/status'
 
 const DEFAULT_PAGE_SIZE = 10
 
@@ -21,10 +22,13 @@ export default function ServiceRequests() {
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [showFilters, setShowFilters] = useState(false)
   const [showColumnMenu, setShowColumnMenu] = useState(false)
   const [columnVisibility, setColumnVisibility] = useState({ requestCode: false, rating: false })
   const columnMenuRef = useRef(null)
+
+  // Inline cancel state
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     if (!showColumnMenu) return
@@ -37,7 +41,7 @@ export default function ServiceRequests() {
 
   const statusFilter = searchParams.get('status') || ''
   const typeFilter = searchParams.get('serviceType') || ''
-  const ratingFilter = searchParams.get('rating') || ''
+  const dateRange = searchParams.get('dateRange') || ''
   const dateFrom = searchParams.get('from') || ''
   const dateTo = searchParams.get('to') || ''
   const page = parseInt(searchParams.get('page') || '1', 10)
@@ -58,8 +62,7 @@ export default function ServiceRequests() {
     setSearchParams({})
   }
 
-  const activeFilterCount = [typeFilter, ratingFilter, dateFrom, dateTo].filter(Boolean).length
-  const hasFilters = statusFilter || typeFilter || ratingFilter || dateFrom || dateTo || search
+  const hasFilters = statusFilter || typeFilter || dateRange || search
 
   const fetchRequests = useCallback(() => {
     setLoading(true)
@@ -67,7 +70,6 @@ export default function ServiceRequests() {
     if (debouncedSearch) params.search = debouncedSearch
     if (statusFilter) params.status = statusFilter
     if (typeFilter) params.serviceType = typeFilter
-    if (ratingFilter) params.rating = ratingFilter
     if (dateFrom) params.from = dateFrom
     if (dateTo) params.to = dateTo
 
@@ -78,7 +80,7 @@ export default function ServiceRequests() {
       })
       .catch(() => toast.error('Failed to load requests'))
       .finally(() => setLoading(false))
-  }, [statusFilter, typeFilter, ratingFilter, dateFrom, dateTo, page, pageSize, debouncedSearch])
+  }, [statusFilter, typeFilter, dateFrom, dateTo, page, pageSize, debouncedSearch])
 
   useEffect(() => { fetchRequests() }, [fetchRequests])
 
@@ -111,6 +113,21 @@ export default function ServiceRequests() {
       toast.success('Excel exported')
     } catch {
       toast.error('Export failed')
+    }
+  }
+
+  const handleInlineCancel = async () => {
+    if (!cancelTarget) return
+    setCancelling(true)
+    try {
+      await api.put(`/servicerequests/${cancelTarget.id}/status`, { status: 'Cancelled' })
+      toast.success(`Request #${cancelTarget.id} cancelled`)
+      setCancelTarget(null)
+      fetchRequests()
+    } catch {
+      toast.error('Failed to cancel request')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -200,25 +217,70 @@ export default function ServiceRequests() {
     {
       id: 'actions',
       header: 'Action',
-      size: 80,
+      size: 120,
       enableSorting: false,
       enableHiding: false,
-      cell: ({ row }) => (
-        <Link
-          to={`/requests/${row.original.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-atoll-600 hover:bg-atoll-50 border border-atoll-200 transition-colors"
-        >
-          <MdVisibility size={14} /> View
-        </Link>
-      ),
+      cell: ({ row }) => {
+        const status = row.original.status
+        const canCancel = status !== 'Completed' && status !== 'Cancelled'
+        return (
+          <div className="flex items-center gap-1.5">
+            <Link
+              to={`/requests/${row.original.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-atoll-600 hover:bg-atoll-50 border border-atoll-200 transition-colors"
+            >
+              <MdVisibility size={14} /> View
+            </Link>
+            {canCancel && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCancelTarget(row.original) }}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 transition-colors"
+                title="Cancel request"
+              >
+                <MdClose size={14} />
+              </button>
+            )}
+          </div>
+        )
+      },
     },
   ], [])
 
-  const statusTabs = useMemo(() => [
-    { label: 'All', value: '' },
-    ...statuses.map(s => ({ label: s === 'InProgress' ? 'In Progress' : s, value: s }))
-  ], [])
+  const handleDateRange = useCallback((value) => {
+    const params = new URLSearchParams(searchParams)
+    if (value) {
+      params.set('dateRange', value)
+      const today = new Date()
+      const fmt = (d) => d.toISOString().slice(0, 10)
+      let from = ''
+      const to = fmt(today)
+      if (value === 'today') {
+        from = fmt(today)
+      } else if (value === 'week') {
+        const d = new Date(today)
+        d.setDate(d.getDate() - 7)
+        from = fmt(d)
+      } else if (value === 'month') {
+        const d = new Date(today)
+        d.setMonth(d.getMonth() - 1)
+        from = fmt(d)
+      } else if (value === '90days') {
+        const d = new Date(today)
+        d.setDate(d.getDate() - 90)
+        from = fmt(d)
+      }
+      if (from) params.set('from', from)
+      else params.delete('from')
+      params.set('to', to)
+    } else {
+      params.delete('dateRange')
+      params.delete('from')
+      params.delete('to')
+    }
+    params.set('page', '1')
+    setSearchParams(params)
+  }, [searchParams, setSearchParams])
 
   return (
     <div>
@@ -231,27 +293,61 @@ export default function ServiceRequests() {
         }
       />
 
-      {/* Status Tabs + Search + Filters */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
-        {/* Status pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-          {statusTabs.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setFilter('status', statusFilter === value ? '' : value)}
-              className={`w-[108px] inline-flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                statusFilter === value
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {value && <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === value ? 'bg-white' : statusDotColors[value]}`} />}
-              {label}
-            </button>
-          ))}
+      {/* Filter Dropdowns + Search + Columns */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        {/* Status Dropdown */}
+        <div>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setFilter('status', e.target.value)}
+            aria-label="Filter by status"
+          >
+            <option value="">All Status</option>
+            {statuses.map(s => (
+              <option key={s} value={s}>{s === 'InProgress' ? 'In Progress' : s}</option>
+            ))}
+          </Select>
         </div>
 
-        {/* Search + Filter controls */}
+        {/* Service Type Dropdown */}
+        <div>
+          <Select
+            value={typeFilter}
+            onChange={(e) => setFilter('serviceType', e.target.value)}
+            aria-label="Filter by service type"
+          >
+            <option value="">All Services</option>
+            {serviceTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </Select>
+        </div>
+
+        {/* Date Range Dropdown */}
+        <div>
+          <Select
+            value={dateRange}
+            onChange={(e) => handleDateRange(e.target.value)}
+            aria-label="Filter by date"
+          >
+            <option value="">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+            <option value="90days">Last 90 Days</option>
+          </Select>
+        </div>
+
+        {/* Clear filters */}
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+            title="Clear all filters"
+          >
+            <MdClear size={16} /> Clear
+          </button>
+        )}
+
+        {/* Right side: Search + Columns */}
         <div className="flex items-center gap-2 ml-auto">
           <div className="relative">
             <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
@@ -260,7 +356,7 @@ export default function ServiceRequests() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, phone..."
-              className="w-52 pl-8 pr-8 py-1.5 border border-gray-200 rounded-md text-sm outline-none focus-ring hover:border-gray-300 focus:border-atoll-500 transition-all"
+              className="w-72 pl-8 pr-8 py-2 border border-gray-200 rounded-lg text-sm outline-none focus-ring hover:border-gray-300 focus:border-atoll-500 transition-all"
               aria-label="Search requests"
             />
             {search && (
@@ -273,27 +369,10 @@ export default function ServiceRequests() {
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-              showFilters || activeFilterCount > 0
-                ? 'border-atoll-200 bg-atoll-50 text-atoll-700'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            }`}
-          >
-            <MdFilterList size={16} />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="bg-atoll-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {activeFilterCount}
-              </span>
-            )}
-            <MdKeyboardArrowDown size={16} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
           <div className="relative" ref={columnMenuRef}>
             <button
               onClick={() => setShowColumnMenu(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                 showColumnMenu
                   ? 'border-atoll-200 bg-atoll-50 text-atoll-700'
                   : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -318,66 +397,8 @@ export default function ServiceRequests() {
               </div>
             )}
           </div>
-          {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-red-50"
-              title="Clear all filters"
-            >
-              <MdClear size={16} /> Clear
-            </button>
-          )}
         </div>
       </div>
-
-      {/* Expanded Filters */}
-      {showFilters && (
-        <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Service Type</label>
-              <Select
-                value={typeFilter}
-                onChange={(e) => setFilter('serviceType', e.target.value)}
-                aria-label="Filter by service type"
-              >
-                <option value="">All Types</option>
-                {serviceTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Rating</label>
-              <Select
-                value={ratingFilter}
-                onChange={(e) => setFilter('rating', e.target.value)}
-                aria-label="Filter by rating"
-              >
-                {ratingOptions.map(r => <option key={r} value={r}>{ratingLabels[r]}</option>)}
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">From Date</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setFilter('from', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus-ring hover:border-atoll-300 focus:border-atoll-500"
-                aria-label="Date from"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">To Date</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setFilter('to', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus-ring hover:border-atoll-300 focus:border-atoll-500"
-                aria-label="Date to"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200">
@@ -402,6 +423,18 @@ export default function ServiceRequests() {
           emptyDescription={hasFilters ? 'Try adjusting your search or filters' : 'No service requests yet'}
         />
       </div>
+
+      {/* Inline Cancel Confirmation */}
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleInlineCancel}
+        title="Cancel Request?"
+        message={cancelTarget ? `Are you sure you want to cancel request #${cancelTarget.id} from ${cancelTarget.customerName}?` : ''}
+        confirmText="Cancel Request"
+        confirmVariant="danger"
+        loading={cancelling}
+      />
     </div>
   )
 }

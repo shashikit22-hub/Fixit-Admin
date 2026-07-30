@@ -20,12 +20,19 @@ export const serviceTypes = ['Electrical', 'Plumbing', 'Carpentry', 'Painting', 
 
 export const serviceTypeColors = {
   Electrical: 'bg-yellow-500',
+  Electrician: 'bg-yellow-500',
   Plumbing: 'bg-blue-500',
+  Plumber: 'bg-blue-500',
   Carpentry: 'bg-amber-700',
+  Carpenter: 'bg-amber-700',
   Painting: 'bg-pink-500',
+  Painter: 'bg-pink-500',
   Cleaning: 'bg-teal-500',
+  Cleaner: 'bg-teal-500',
   'Appliance Repair': 'bg-orange-500',
+  'Appliance Technician': 'bg-orange-500',
   Other: 'bg-gray-500',
+  General: 'bg-gray-500',
 }
 
 export const specialties = ['Electrician', 'Plumber', 'Carpenter', 'Painter', 'Cleaner', 'Appliance Technician', 'General']

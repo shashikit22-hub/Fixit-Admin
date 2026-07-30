@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { MdAdd, MdEdit, MdDelete, MdSearch, MdPeople } from 'react-icons/md'
+import { Link, useNavigate } from 'react-router-dom'
+import { MdAdd, MdEdit, MdDelete, MdSearch, MdPeople, MdVisibility, MdClear } from 'react-icons/md'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -20,37 +20,47 @@ const emptyForm = { name: '', phone: '', specialty: '', email: '', address: '', 
 export default function Technicians() {
   const navigate = useNavigate()
   const [technicians, setTechnicians] = useState([])
-  const [stats, setStats] = useState({ total: 0, available: 0, unavailable: 0 })
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
+  const [submitting, setSubmitting] = useState(false)
   const [search, setSearch] = useState('')
   const [specialtyFilter, setSpecialtyFilter] = useState('')
+  const [availabilityFilter, setAvailabilityFilter] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  const hasFilters = specialtyFilter || availabilityFilter || search
+  const clearFilters = () => {
+    setSearch('')
+    setSpecialtyFilter('')
+    setAvailabilityFilter('')
+  }
 
   const fetchTechnicians = () => {
     setLoading(true)
     const params = {}
     if (search) params.search = search
     if (specialtyFilter) params.specialty = specialtyFilter
+    if (availabilityFilter) params.isAvailable = availabilityFilter === 'available'
     api.get('/technicians', { params })
       .then(res => {
         setTechnicians(res.data.data)
-        setStats(res.data.stats)
       })
       .catch(() => toast.error('Failed to load technicians'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchTechnicians() }, [search, specialtyFilter])
+  useEffect(() => { fetchTechnicians() }, [search, specialtyFilter, availabilityFilter])
 
   const openAdd = () => {
     setEditing(null)
     setForm(emptyForm)
     setErrors({})
+    setTouched({})
     setShowModal(true)
   }
 
@@ -67,34 +77,67 @@ export default function Technicians() {
       isAvailable: tech.isAvailable,
     })
     setErrors({})
+    setTouched({})
     setShowModal(true)
+  }
+
+  const validateField = (field, value) => {
+    if (field === 'name' && !value.trim()) return 'Name is required'
+    if (field === 'phone') {
+      if (!value.trim()) return 'Phone is required'
+      if (!/^[0-9+\-\s()]+$/.test(value)) return 'Invalid phone format'
+    }
+    if (field === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email format'
+    if (field === 'specialty' && !value) return 'Specialty is required'
+    return ''
+  }
+
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+    const err = validateField(field, form[field])
+    setErrors(prev => ({ ...prev, [field]: err }))
   }
 
   const validate = () => {
     const errs = {}
-    if (!form.name.trim()) errs.name = 'Name is required'
-    if (!form.phone.trim()) errs.phone = 'Phone is required'
-    else if (!/^[0-9+\-\s()]+$/.test(form.phone)) errs.phone = 'Invalid phone format'
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email format'
+    const nameErr = validateField('name', form.name)
+    const phoneErr = validateField('phone', form.phone)
+    const emailErr = validateField('email', form.email)
+    const specialtyErr = validateField('specialty', form.specialty)
+    if (nameErr) errs.name = nameErr
+    if (phoneErr) errs.phone = phoneErr
+    if (emailErr) errs.email = emailErr
+    if (specialtyErr) errs.specialty = specialtyErr
     setErrors(errs)
+    setTouched({ name: true, phone: true, email: true, specialty: true })
     return Object.keys(errs).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
+    setSubmitting(true)
+    const payload = {
+      ...form,
+      email: form.email.trim() || null,
+      address: form.address.trim() || null,
+      govtIdNumber: form.govtIdNumber.trim() || null,
+      licenseNumber: form.licenseNumber.trim() || null,
+    }
     try {
       if (editing) {
-        await api.put(`/technicians/${editing.id}`, form)
+        await api.put(`/technicians/${editing.id}`, payload)
         toast.success('Technician updated')
       } else {
-        await api.post('/technicians', form)
+        await api.post('/technicians', payload)
         toast.success('Technician added')
       }
       setShowModal(false)
       fetchTechnicians()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -172,20 +215,27 @@ export default function Technicians() {
       header: 'Actions',
       enableSorting: false,
       cell: ({ row }) => (
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1.5">
+          <Link
+            to={`/technicians/${row.original.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-atoll-600 hover:bg-atoll-50 border border-atoll-200 transition-colors"
+          >
+            <MdVisibility size={14} /> View
+          </Link>
           <button
             onClick={(e) => { e.stopPropagation(); openEdit(row.original) }}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 focus-ring"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-atoll-600 hover:bg-atoll-50 border border-gray-200 hover:border-atoll-200 transition-colors"
             aria-label={`Edit ${row.original.name}`}
           >
-            <MdEdit size={18} />
+            <MdEdit size={14} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setDeleteTarget(row.original) }}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 focus-ring"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 transition-colors"
             aria-label={`Delete ${row.original.name}`}
           >
-            <MdDelete size={18} />
+            <MdDelete size={14} />
           </button>
         </div>
       ),
@@ -203,55 +253,12 @@ export default function Technicians() {
         }
       />
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
-          <div className="bg-atoll-500 w-10 h-10 rounded-lg flex items-center justify-center">
-            <MdPeople className="text-white" size={22} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500">Total</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
-          <div className="bg-green-500 w-10 h-10 rounded-lg flex items-center justify-center">
-            <MdPeople className="text-white" size={22} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{stats.available}</p>
-            <p className="text-sm text-gray-500">Available</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
-          <div className="bg-red-500 w-10 h-10 rounded-lg flex items-center justify-center">
-            <MdPeople className="text-white" size={22} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{stats.unavailable}</p>
-            <p className="text-sm text-gray-500">Unavailable</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg border border-gray-200">
-        {/* Search & Filter Bar */}
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, or email..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none text-sm focus-ring"
-              aria-label="Search technicians"
-            />
-          </div>
+      {/* Filter Dropdowns + Search */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <div>
           <Select
             value={specialtyFilter}
             onChange={(e) => setSpecialtyFilter(e.target.value)}
-            className="w-auto"
             aria-label="Filter by specialty"
           >
             <option value="">All Specialties</option>
@@ -259,13 +266,61 @@ export default function Technicians() {
           </Select>
         </div>
 
+        <div>
+          <Select
+            value={availabilityFilter}
+            onChange={(e) => setAvailabilityFilter(e.target.value)}
+            aria-label="Filter by availability"
+          >
+            <option value="">All Availability</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+          </Select>
+        </div>
+
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+            title="Clear all filters"
+          >
+            <MdClear size={16} /> Clear
+          </button>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative">
+            <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone, email..."
+              className="w-72 pl-8 pr-8 py-2 border border-gray-200 rounded-lg text-sm outline-none focus-ring hover:border-gray-300 focus:border-atoll-500 transition-all"
+              aria-label="Search technicians"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                aria-label="Clear search"
+              >
+                <MdClear size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-lg border border-gray-200">
         <DataTable
           columns={columns}
           data={technicians}
           loading={loading}
           pageSize={20}
           emptyTitle="No technicians found"
-          emptyDescription={search || specialtyFilter ? 'Try adjusting your search or filter' : 'Add your first technician to get started'}
+          emptyDescription={hasFilters ? 'Try adjusting your search or filters' : 'Add your first technician to get started'}
           emptyIcon={MdPeople}
           onRowClick={(tech) => navigate(`/technicians/${tech.id}`)}
         />
@@ -278,80 +333,128 @@ export default function Technicians() {
         title={editing ? 'Edit Technician' : 'Add Technician'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          <Input
-            label="Name"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Full name"
-            error={errors.name}
-            autoFocus
-          />
-          <Input
-            label="Phone"
-            required
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="Phone number"
-            error={errors.phone}
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="Email address (optional)"
-            error={errors.email}
-          />
-          <Select
-            label="Specialty"
-            value={form.specialty}
-            onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-          >
-            <option value="">Select specialty...</option>
-            {specialties.map(s => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
-            <textarea
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="Address (optional)"
-              rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none text-sm focus-ring hover:border-atoll-300 focus:border-atoll-500 resize-none"
-            />
+        <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto">
+          {/* Section: Personal Information */}
+          <div className="px-6 py-2.5 bg-gray-50/80 border-b border-gray-100">
+            <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Personal Information</h4>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Name *"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onBlur={() => handleBlur('name')}
+                placeholder="Full name"
+                error={touched.name ? errors.name : ''}
+                autoFocus
+              />
+              <Input
+                label="Phone *"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onBlur={() => handleBlur('phone')}
+                placeholder="e.g. +91 98765 43210"
+                error={touched.phone ? errors.phone : ''}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onBlur={() => handleBlur('email')}
+                placeholder="email@example.com"
+                error={touched.email ? errors.email : ''}
+                helperText={!errors.email && !touched.email ? 'Optional' : ''}
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
+                <textarea
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Full address"
+                  rows={1}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none text-sm focus-ring hover:border-atoll-300 focus:border-atoll-500 resize-none"
+                />
+                <p className="mt-1.5 text-xs text-gray-400">Optional</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Professional Details */}
+          <div className="px-6 py-2.5 bg-gray-50/80 border-b border-gray-100 border-t">
+            <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Professional Details</h4>
+          </div>
+          <div className="px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Select
+                  label="Specialty *"
+                  value={form.specialty}
+                  onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                  onBlur={() => handleBlur('specialty')}
+                  error={touched.specialty ? errors.specialty : ''}
+                >
+                  <option value="">Select specialty...</option>
+                  {specialties.map(s => <option key={s} value={s}>{s}</option>)}
+                </Select>
+                {form.specialty && (
+                  <div className="mt-2">
+                    <Badge className={specialtyColors[form.specialty] || 'bg-gray-100 text-gray-700'}>
+                      {form.specialty}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              <Input
+                label="License Number"
+                value={form.licenseNumber}
+                onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+                placeholder="e.g. LIC-12345"
+                helperText="Optional"
+              />
+            </div>
             <Input
               label="Govt ID Number"
               value={form.govtIdNumber}
               onChange={(e) => setForm({ ...form, govtIdNumber: e.target.value })}
-              placeholder="Optional"
+              placeholder="e.g. Aadhaar / PAN"
+              helperText="Optional"
             />
-            <Input
-              label="License Number"
-              value={form.licenseNumber}
-              onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
-              placeholder="Optional"
-            />
+
+            {/* Availability Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Available for assignments</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {form.isAvailable ? 'This technician can receive new jobs' : 'This technician will not receive new jobs'}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.isAvailable}
+                onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                  form.isAvailable ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                  form.isAvailable ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="available"
-              checked={form.isAvailable}
-              onChange={(e) => setForm({ ...form, isAvailable: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-300 text-atoll-600 focus:ring-atoll-500"
-            />
-            <label htmlFor="available" className="text-sm text-gray-700">Available</label>
-          </div>
-          <div className="flex gap-3 pt-2">
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 flex gap-3">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowModal(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
-              {editing ? 'Update' : 'Add'}
+            <Button type="submit" className="flex-1" loading={submitting}>
+              {editing ? 'Update Technician' : 'Add Technician'}
             </Button>
           </div>
         </form>
