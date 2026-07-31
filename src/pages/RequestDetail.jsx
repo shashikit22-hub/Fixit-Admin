@@ -167,6 +167,7 @@ export default function RequestDetail() {
   request.assignments?.forEach(a => {
     timeline.push({ label: `Assigned to ${a.technicianName}`, time: a.assignedAt, dot: 'bg-blue-400' })
     if (a.acceptedAt) timeline.push({ label: `${a.technicianName} accepted`, time: a.acceptedAt, dot: 'bg-green-400' })
+    if (a.startedAt) timeline.push({ label: `${a.technicianName} started work`, time: a.startedAt, dot: 'bg-purple-400' })
     if (a.rejectedAt) timeline.push({ label: `${a.technicianName} rejected`, time: a.rejectedAt, dot: 'bg-red-400' })
     if (a.completedAt) timeline.push({ label: `${a.technicianName} completed`, time: a.completedAt, dot: 'bg-green-400' })
   })
@@ -372,10 +373,10 @@ export default function RequestDetail() {
               {request.assignments?.length > 0 ? (
                 <div className="space-y-3">
                   {request.assignments.map(a => {
-                    const cardBg = a.status === 'Accepted' || a.status === 'Completed' ? 'bg-green-50/50'
+                    const cardBg = a.status === 'Accepted' || a.status === 'Started' || a.status === 'Completed' ? 'bg-green-50/50'
                       : a.status === 'Rejected' ? 'bg-red-50/30'
                       : 'bg-gray-50/50'
-                    const avatarBg = a.status === 'Accepted' || a.status === 'Completed' ? 'bg-green-100 text-green-700'
+                    const avatarBg = a.status === 'Accepted' || a.status === 'Started' || a.status === 'Completed' ? 'bg-green-100 text-green-700'
                       : a.status === 'Rejected' ? 'bg-red-100 text-red-700'
                       : 'bg-atoll-100 text-atoll-700'
                     return (
@@ -396,7 +397,7 @@ export default function RequestDetail() {
                             <p className="text-[11px] text-green-600 mt-1 flex items-center gap-1"><MdCheckCircle size={12} /> Completed {fmtDateTime(a.completedAt)}</p>
                           )}
                           <div className="flex items-center gap-2 mt-2 print:hidden">
-                            {a.status === 'Accepted' && !a.completedAt && (
+                            {(a.status === 'Accepted' || a.status === 'Started') && !a.completedAt && (
                               <Button onClick={() => handleComplete(a.id)} variant="outline" size="sm">
                                 <MdCheckCircle size={14} /> Mark Done
                               </Button>

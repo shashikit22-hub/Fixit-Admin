@@ -47,11 +47,12 @@ export const specialtyColors = {
   General: 'bg-gray-100 text-gray-700',
 }
 
-export const assignmentStatuses = ['Pending', 'Accepted', 'Rejected', 'Completed']
+export const assignmentStatuses = ['Pending', 'Accepted', 'Started', 'Rejected', 'Completed']
 
 export const assignmentStatusColors = {
   Pending: 'bg-amber-100 text-amber-700',
   Accepted: 'bg-green-100 text-green-700',
+  Started: 'bg-purple-100 text-purple-700',
   Rejected: 'bg-red-100 text-red-700',
   Completed: 'bg-blue-100 text-blue-700',
 }
@@ -59,6 +60,7 @@ export const assignmentStatusColors = {
 export const assignmentStatusDotColors = {
   Pending: 'bg-amber-500',
   Accepted: 'bg-green-500',
+  Started: 'bg-purple-500',
   Rejected: 'bg-red-500',
   Completed: 'bg-blue-500',
 }

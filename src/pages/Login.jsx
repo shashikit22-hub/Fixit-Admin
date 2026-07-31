@@ -16,7 +16,7 @@ export default function Login() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const saved = localStorage.getItem('fixit_remember')
+    const saved = localStorage.getItem('tinyfix_remember')
     if (saved) {
       setUsername(saved)
       setRememberMe(true)
@@ -48,12 +48,12 @@ export default function Login() {
     setFormError('')
     try {
       const { data } = await api.post('/auth/login', { username: username.trim(), password })
-      localStorage.setItem('fixit_token', data.token)
-      localStorage.setItem('fixit_user', JSON.stringify({ username: data.username, role: data.role, fullName: data.fullName }))
+      localStorage.setItem('tinyfix_token', data.token)
+      localStorage.setItem('tinyfix_user', JSON.stringify({ username: data.username, role: data.role, fullName: data.fullName }))
       if (rememberMe) {
-        localStorage.setItem('fixit_remember', username.trim())
+        localStorage.setItem('tinyfix_remember', username.trim())
       } else {
-        localStorage.removeItem('fixit_remember')
+        localStorage.removeItem('tinyfix_remember')
       }
       navigate('/')
     } catch (err) {

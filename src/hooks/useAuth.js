@@ -6,18 +6,18 @@ export default function useAuth() {
 
   const user = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem('fixit_user') || '{}')
+      return JSON.parse(localStorage.getItem('tinyfix_user') || '{}')
     } catch {
       return {}
     }
   }, [])
 
-  const token = localStorage.getItem('fixit_token')
+  const token = localStorage.getItem('tinyfix_token')
   const isAuthenticated = !!token
 
   const logout = useCallback(() => {
-    localStorage.removeItem('fixit_token')
-    localStorage.removeItem('fixit_user')
+    localStorage.removeItem('tinyfix_token')
+    localStorage.removeItem('tinyfix_user')
     navigate('/login')
   }, [navigate])
 
